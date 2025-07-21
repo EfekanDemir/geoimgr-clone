@@ -22,7 +22,7 @@ const ActionButtons = ({
   return (
     <div className="card">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        Actions
+        {t('actions')}
       </h3>
 
       <div className="space-y-4">

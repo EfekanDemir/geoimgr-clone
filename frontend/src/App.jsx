@@ -6,7 +6,10 @@ import ImageInfo from './components/ImageInfo';
 import ExifData from './components/ExifData';
 import MapComponent from './components/MapComponent';
 import CoordinatesInput from './components/CoordinatesInput';
+import KeywordsInput from './components/KeywordsInput';
+import DescriptionInput from './components/DescriptionInput';
 import ActionButtons from './components/ActionButtons';
+import InfoPanel from './components/InfoPanel';
 import Footer from './components/Footer';
 import Notification from './components/Notification';
 
@@ -20,6 +23,11 @@ function App() {
   const [selectedCoordinates, setSelectedCoordinates] = useState(null);
   const [notification, setNotification] = useState(null);
   const [updatedFilename, setUpdatedFilename] = useState(null);
+  
+  // New metadata state
+  const [keywords, setKeywords] = useState('');
+  const [description, setDescription] = useState('');
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
 
   // Helper function to show notifications
   const showNotification = (message, type = 'info') => {
@@ -32,6 +40,10 @@ function App() {
     setImageData(data);
     setSelectedCoordinates(data.coordinates);
     setUpdatedFilename(null);
+    
+    // Set keywords and description from EXIF if available
+    setKeywords(data.exifData?.keywords || '');
+    setDescription(data.exifData?.description || '');
     
     if (data.hasGPS) {
       showNotification(
@@ -57,7 +69,17 @@ function App() {
     );
   };
 
-  // Handle GPS embedding
+  // Handle keywords change
+  const handleKeywordsChange = (newKeywords) => {
+    setKeywords(newKeywords);
+  };
+
+  // Handle description change
+  const handleDescriptionChange = (newDescription) => {
+    setDescription(newDescription);
+  };
+
+  // Handle GPS and metadata embedding
   const handleEmbedGPS = async () => {
     if (!imageData || !selectedCoordinates) {
       showNotification(t('invalidCoordinates'), 'error');
@@ -76,7 +98,9 @@ function App() {
           filename: imageData.filename,
           latitude: selectedCoordinates.lat,
           longitude: selectedCoordinates.lng,
-          altitude: selectedCoordinates.alt || null
+          altitude: selectedCoordinates.alt || null,
+          keywords: keywords || null,
+          description: description || null
         }),
       });
 
@@ -84,7 +108,7 @@ function App() {
 
       if (result.success) {
         setUpdatedFilename(result.updatedFilename);
-        showNotification(t('gpsUpdated'), 'success');
+        showNotification(result.message, 'success');
         
         // Update image data with new GPS info
         setImageData(prev => ({
@@ -128,13 +152,16 @@ function App() {
     setSelectedCoordinates(null);
     setUpdatedFilename(null);
     setNotification(null);
+    setKeywords('');
+    setDescription('');
+    setShowInfoPanel(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
+      <main className="container mx-auto px-4 py-8 max-w-[1400px]">
         {notification && (
           <Notification
             message={notification.message}
@@ -143,8 +170,25 @@ function App() {
           />
         )}
 
+        {/* Toggle Info Panel Button */}
+        <div className="mb-6 text-center">
+          <button
+            onClick={() => setShowInfoPanel(!showInfoPanel)}
+            className="btn-secondary"
+          >
+            📚 {showInfoPanel ? 'Hide' : 'Show'} Complete Geotagging Guide
+          </button>
+        </div>
+
+        {/* Info Panel (collapsible) */}
+        {showInfoPanel && (
+          <div className="mb-8">
+            <InfoPanel />
+          </div>
+        )}
+
         {!imageData ? (
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-3xl mx-auto">
             <FileUpload 
               onUploadSuccess={handleUploadSuccess}
               loading={loading}
@@ -153,7 +197,7 @@ function App() {
             />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             {/* Left Column - Image Info & EXIF Data */}
             <div className="space-y-6">
               <ImageInfo imageData={imageData} />
@@ -161,10 +205,11 @@ function App() {
                 gpsData={imageData.gpsData} 
                 exifData={imageData.exifData}
                 hasGPS={imageData.hasGPS}
+                filename={imageData.filename}
               />
             </div>
 
-            {/* Right Column - Map & Controls */}
+            {/* Middle Column - Map & Controls */}
             <div className="space-y-6">
               <MapComponent
                 initialCoordinates={imageData.coordinates}
@@ -175,6 +220,19 @@ function App() {
               <CoordinatesInput
                 coordinates={selectedCoordinates}
                 onCoordinatesChange={handleManualCoordinates}
+              />
+            </div>
+
+            {/* Right Column - Metadata & Actions */}
+            <div className="space-y-6">
+              <KeywordsInput
+                keywords={keywords}
+                onKeywordsChange={handleKeywordsChange}
+              />
+              
+              <DescriptionInput
+                description={description}
+                onDescriptionChange={handleDescriptionChange}
               />
               
               <ActionButtons
